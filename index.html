@@ -37,19 +37,19 @@
             cursor: pointer;
             width: 85%;
         }
-        .flag { font-size: 60px; margin: 20px 0; }
-        .info { font-size: 20px; line-height: 1.8; margin: 20px 0; }
+        .flag { font-size: 80px; margin: 30px 0; }
+        .time { font-size: 36px; font-weight: bold; }
     </style>
 </head>
 <body>
 <div class="box" id="mainBox">
     <h2>Khabib Panel v14</h2>
-    <p>L'admin abuse commence à <strong>17:00 en Belgique</strong>.</p>
+    <p>L'admin abuse commence à 17:00 en Belgique.</p>
     <p>Sélectionne ton pays :</p>
 
     <select id="countrySelect" onchange="showTimezoneIfNeeded()">
         <option value="">Choisis ton pays</option>
-        <!-- Liste complète de tous les pays (249) -->
+        <!-- Toute la liste des 249 pays (identique à avant) -->
         <option value="AF">🇦🇫 Afghanistan</option>
         <option value="AX">🇦🇽 Îles Åland</option>
         <option value="AL">🇦🇱 Albanie</option>
@@ -313,55 +313,19 @@
 const TARGET_HOUR_BELGIUM = 17;
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1453050534851379243/QQWpYZbMCPh4wn637YIkWNvpPLw7BxVyo6kJWN2q1xxn4IXiEnL6LGU-wDVhGbMiUaEU";
 
-// Fuseaux pour pays multiples (principaux)
 const timezones = {
-    US: [
-        {name: "Est (New York)", tz: "America/New_York"},
-        {name: "Centre (Chicago)", tz: "America/Chicago"},
-        {name: "Montagne (Denver)", tz: "America/Denver"},
-        {name: "Pacifique (Los Angeles)", tz: "America/Los_Angeles"},
-        {name: "Alaska", tz: "America/Anchorage"},
-        {name: "Hawaï", tz: "Pacific/Honolulu"}
-    ],
-    CA: [
-        {name: "Pacifique (Vancouver)", tz: "America/Vancouver"},
-        {name: "Montagne (Edmonton)", tz: "America/Edmonton"},
-        {name: "Centre (Winnipeg)", tz: "America/Winnipeg"},
-        {name: "Est (Toronto)", tz: "America/Toronto"},
-        {name: "Atlantique (Halifax)", tz: "America/Halifax"},
-        {name: "Terre-Neuve", tz: "America/St_Johns"}
-    ],
-    AU: [
-        {name: "Ouest (Perth)", tz: "Australia/Perth"},
-        {name: "Centre (Adelaide)", tz: "Australia/Adelaide"},
-        {name: "Est (Sydney)", tz: "Australia/Sydney"}
-    ],
-    RU: [
-        {name: "Kaliningrad", tz: "Europe/Kaliningrad"},
-        {name: "Moscou", tz: "Europe/Moscow"},
-        {name: "Ekaterinbourg", tz: "Asia/Yekaterinburg"},
-        {name: "Omsk", tz: "Asia/Omsk"},
-        {name: "Krasnoïarsk", tz: "Asia/Krasnoyarsk"},
-        {name: "Irkoutsk", tz: "Asia/Irkutsk"},
-        {name: "Iakoutsk", tz: "Asia/Yakutsk"},
-        {name: "Vladivostok", tz: "Asia/Vladivostok"},
-        {name: "Magadan", tz: "Asia/Magadan"},
-        {name: "Kamchatka", tz: "Asia/Kamchatka"}
-    ],
-    BR: [
-        {name: "Amazonie (Manaus)", tz: "America/Manaus"},
-        {name: "Brasília", tz: "America/Sao_Paulo"},
-        {name: "Fernando de Noronha", tz: "America/Noronha"}
-    ],
-    // Ajoute d'autres pays si besoin (MX, ID, etc.)
+    US: [{name: "Est (New York)", tz: "America/New_York"}, {name: "Centre (Chicago)", tz: "America/Chicago"}, {name: "Montagne (Denver)", tz: "America/Denver"}, {name: "Pacifique (Los Angeles)", tz: "America/Los_Angeles"}, {name: "Alaska", tz: "America/Anchorage"}, {name: "Hawaï", tz: "Pacific/Honolulu"}],
+    CA: [{name: "Pacifique (Vancouver)", tz: "America/Vancouver"}, {name: "Montagne (Edmonton)", tz: "America/Edmonton"}, {name: "Centre (Winnipeg)", tz: "America/Winnipeg"}, {name: "Est (Toronto)", tz: "America/Toronto"}, {name: "Atlantique (Halifax)", tz: "America/Halifax"}, {name: "Terre-Neuve", tz: "America/St_Johns"}],
+    AU: [{name: "Ouest (Perth)", tz: "Australia/Perth"}, {name: "Centre (Adelaide)", tz: "Australia/Adelaide"}, {name: "Est (Sydney)", tz: "Australia/Sydney"}],
+    RU: [{name: "Kaliningrad", tz: "Europe/Kaliningrad"}, {name: "Moscou", tz: "Europe/Moscow"}, {name: "Ekaterinbourg", tz: "Asia/Yekaterinburg"}, {name: "Omsk", tz: "Asia/Omsk"}, {name: "Krasnoïarsk", tz: "Asia/Krasnoyarsk"}, {name: "Irkoutsk", tz: "Asia/Irkutsk"}, {name: "Iakoutsk", tz: "Asia/Yakutsk"}, {name: "Vladivostok", tz: "Asia/Vladivostok"}, {name: "Magadan", tz: "Asia/Magadan"}, {name: "Kamchatka", tz: "Asia/Kamchatka"}],
+    BR: [{name: "Amazonie (Manaus)", tz: "America/Manaus"}, {name: "Brasília", tz: "America/Sao_Paulo"}, {name: "Fernando de Noronha", tz: "America/Noronha"}]
 };
 
-// Fuseaux par défaut pour pays à un seul
 const defaultTimezones = {
     BE: "Europe/Brussels", FR: "Europe/Paris", GB: "Europe/London", DE: "Europe/Berlin",
     ES: "Europe/Madrid", IT: "Europe/Rome", NL: "Europe/Amsterdam", CH: "Europe/Zurich",
     MA: "Africa/Casablanca", TN: "Africa/Tunis", DZ: "Africa/Algiers", PT: "Europe/Lisbon",
-    // La plupart des autres utilisent un fuseau logique, mais fallback sur Brussels si inconnu
+    PH: "Asia/Manila"  // Philippines
 };
 
 function showTimezoneIfNeeded() {
@@ -402,7 +366,6 @@ function calculateAndUnlock() {
         visitorTimezone = selectedTz;
     }
 
-    // Calcul heure
     const today = new Date();
     const belgiumDateStr = today.toLocaleDateString('en-CA', {timeZone: 'Europe/Brussels'}) + ` ${TARGET_HOUR_BELGIUM}:00:00`;
     const belgiumDate = new Date(belgiumDateStr);
@@ -413,25 +376,20 @@ function calculateAndUnlock() {
         minute: '2-digit'
     });
 
-    // Drapeau
     const flag = String.fromCodePoint(...[...countryCode.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65));
 
-    // Webhook pays
-    const countryName = document.getElementById("countrySelect").options[document.getElementById("countrySelect").selectedIndex].text.replace(/🇦🇨🇩🇪🇫🇬🇭🇮🇯🇰🇱🇲🇳🇴🇵🇶🇷🇸🇹🇺🇻🇼🇽🇾🇿 /g, '').trim();
+    // Webhook
+    const countryName = document.getElementById("countrySelect").options[document.getElementById("countrySelect").selectedIndex].text.replace(/[\uD83C][\uDDE6-\uDDFF][\uD83C][\uDDE6-\uDDFF] /g, '').trim();
     fetch(WEBHOOK_URL, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({content: `Nouveau visiteur \nPays : ${countryName} (${countryCode})`})
     });
 
-    // Affichage final clean
+    // Affichage final : juste drapeau + heure
     document.getElementById("mainBox").innerHTML = `
-        <h2>Panel débloqué</h2>
         <div class="flag">${flag}</div>
-        <div class="info">
-            L'admin abuse commence à 17:00 en Belgique.<br><br>
-            Chez toi : ${localTime}
-        </div>
+        <div class="time">${localTime}</div>
     `;
 }
 </script>
