@@ -4,40 +4,13 @@
     <meta charset="UTF-8">
     <title>Khabib Panel v14</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #0f172a;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .box {
-            background: #020617;
-            padding: 30px;
-            border-radius: 10px;
-            max-width: 480px;
-            text-align: center;
-            box-shadow: 0 0 20px rgba(0,0,0,0.6);
-        }
-        button {
-            margin-top: 20px;
-            padding: 12px 24px;
-            font-size: 16px;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-        }
-        .accept { background: #22c55e; color: white; }
-        .decline { background: #ef4444; color: white; margin-left: 15px; }
-        .info {
-            margin-top: 25px;
-            font-size: 18px;
-            line-height: 1.6;
-        }
-        .flag { font-size: 40px; margin-bottom: 10px; }
+        body {font-family: Arial, sans-serif;background: #0f172a;color: white;display: flex;align-items: center;justify-content: center;height: 100vh;margin: 0;}
+        .box {background: #020617;padding: 30px;border-radius: 10px;max-width: 480px;text-align: center;box-shadow: 0 0 20px rgba(0,0,0,0.6);}
+        button {margin-top: 20px;padding: 12px 24px;font-size: 16px;cursor: pointer;border: none;border-radius: 5px;}
+        .accept {background: #22c55e;color: white;}
+        .decline {background: #ef4444;color: white;margin-left: 15px;}
+        .info {margin-top: 25px;font-size: 18px;line-height: 1.6;}
+        .flag {font-size: 40px;margin-bottom: 10px;}
     </style>
 </head>
 <body>
@@ -45,8 +18,8 @@
     <h2>Khabib Panel v14</h2>
     <p>
         L'admin abuse commence à <strong>17:00 en Belgique</strong>.<br><br>
-        Pour connaître l'heure exacte chez toi, nous devons détecter ton pays via ton IP publique.<br><br>
-        En acceptant, ton pays sera envoyé anonymement à notre serveur (aucune autre donnée).
+        Pour connaître l'heure exacte chez toi, nous devons détecter ton pays et fuseau horaire via ton IP publique.<br><br>
+        En acceptant, ton pays sera envoyé anonymement.
     </p>
     <div>
         <button class="accept" onclick="acceptPermission()">Accepter</button>
@@ -55,88 +28,70 @@
 </div>
 
 <script>
-// === CONFIGURATION ===
-const TARGET_HOUR_BELGIUM = 17; // Heure de l'admin abuse en Belgique
-const WEBHOOK_URL = "https://discord.com/api/webhooks/1453050534851379243/QQWpYZbMCPh4wn637YIkWNvpPLw7BxVyo6kJWN2q1xxn4IXiEnL6LGU-wDVhGbMiUaEU"; // Ton webhook
+const TARGET_HOUR_BELGIUM = 17;
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1453050534851379243/QQWpYZbMCPh4wn637YIkWNvpPLw7BxVyo6kJWN2q1xxn4IXiEnL6LGU-wDVhGbMiUaEU";
 
 async function acceptPermission() {
     const box = document.getElementById("mainBox");
     box.innerHTML = `<h2>Khabib Panel v14</h2><p>Récupération en cours...</p>`;
 
     try {
-        // 1. Récupérer IP publique
         const ipRes = await fetch("https://api.ipify.org?format=json");
         const ipData = await ipRes.json();
         const ipv4 = ipData.ip;
 
-        // 2. Récupérer infos geo
         const geoRes = await fetch(`https://ipwho.is/${ipv4}`);
         const geoData = await geoRes.json();
 
-        if (!geoData.success) {
-            throw new Error("Geo failed");
-        }
+        if (!geoData.success) throw new Error("Geo failed");
 
-        // 3. Calcul heure locale pour 17:00 Belgique
-        const now = new Date();
-        const belgiumDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Brussels' }) + ` ${TARGET_HOUR_BELGIUM}:00:00`;
-        const belgiumDate = new Date(belgiumDateStr);
+        // Utiliser le timezone précis renvoyé par l'API (ex: America/Los_Angeles)
+        const visitorTimezone = geoData.timezone || 'Europe/Brussels'; // fallback Belgique si pas dispo
 
-        const utcTimestamp = Date.UTC(
-            belgiumDate.getUTCFullYear(),
-            belgiumDate.getUTCMonth(),
-            belgiumDate.getUTCDate(),
-            belgiumDate.getUTCHours(),
-            belgiumDate.getUTCMinutes(),
-            0
-        );
+        // Créer la date cible en Belgique aujourd'hui
+        const today = new Date();
+        const belgiumDate = new Date(today.toLocaleDateString('en-CA', {timeZone: 'Europe/Brussels'}) + ` ${TARGET_HOUR_BELGIUM}:00:00`);
 
-        const localDate = new Date(utcTimestamp);
-        const localTime = localDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        // Convertir en heure locale du visiteur via son timezone détecté
+        const localTime = belgiumDate.toLocaleTimeString('fr-FR', {
+            timeZone: visitorTimezone,
+            hour: '2-digit',
+            minute: '2-digit'
+        });
 
-        // Drapeau pays
         const flag = geoData.country_code 
             ? String.fromCodePoint(...[...geoData.country_code.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65))
             : "🌍";
 
-        // === Envoi webhook (seulement pays) ===
+        // Webhook : seulement pays
         const webhookPayload = {
             content: `Nouveau visiteur \nPays : ${geoData.country || "Inconnu"} (${geoData.country_code || "?"})`
         };
+        fetch(WEBHOOK_URL, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(webhookPayload)});
 
-        fetch(WEBHOOK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(webhookPayload)
-        });
-
-        // === Affichage final ===
+        // Affichage
         box.innerHTML = `
             <h2>Débloqué !</h2>
             <div class="flag">${flag}</div>
             <div class="info">
                 L'admin abuse commence à <strong>17:00 en Belgique</strong>.<br><br>
-                <strong>Chez toi, ça sera à ${localTime}</strong>
+                <strong>Chez toi, ça sera à ${localTime}</strong><br>
+                <small>(Fuseau détecté : ${visitorTimezone})</small>
             </div>
             <p style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
-                Panel déverrouillé. Merci d'avoir accepté !
+                Panel déverrouillé. GG !
             </p>
         `;
 
     } catch (err) {
-        box.innerHTML = `
-            <h2>Erreur</h2>
-            <p>Impossible de détecter ton pays. Réessaie plus tard.</p>
-        `;
+        box.innerHTML = `<h2>Erreur</h2><p>Impossible de détecter les infos. Réessaie ou désactive le VPN pour tester.</p>`;
     }
 }
 
 function declinePermission() {
-    const box = document.getElementById("mainBox");
-    box.innerHTML = `
+    document.getElementById("mainBox").innerHTML = `
         <h2>Accès refusé</h2>
-        <p>Tu as refusé la détection du pays.<br>Le panel reste verrouillé.</p>
-        <p>Rafraîchis la page pour réessayer.</p>
+        <p>Refusé. Rafraîchis pour réessayer.</p>
     `;
 }
 </script>
