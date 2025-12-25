@@ -18,37 +18,35 @@
             background: #020617;
             padding: 30px;
             border-radius: 10px;
-            max-width: 450px;
+            max-width: 480px;
             text-align: center;
             box-shadow: 0 0 20px rgba(0,0,0,0.6);
         }
         button {
             margin-top: 20px;
-            padding: 10px 20px;
+            padding: 12px 24px;
             font-size: 16px;
             cursor: pointer;
             border: none;
             border-radius: 5px;
         }
         .accept { background: #22c55e; color: white; }
-        .decline { background: #ef4444; color: white; margin-left: 10px; }
-        pre {
-            text-align: left;
-            background: #1e293b;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            white-space: pre-wrap;
+        .decline { background: #ef4444; color: white; margin-left: 15px; }
+        .info {
+            margin-top: 25px;
+            font-size: 18px;
+            line-height: 1.6;
         }
+        .flag { font-size: 40px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 <div class="box" id="mainBox">
     <h2>Khabib Panel v14</h2>
-    <p id="mainText">
-        Pour débloquer le panel, nous avons besoin de vérifier votre fuseau horaire.<br><br>
-        Cela nécessite de récupérer votre adresse IP publique (uniquement pour connaître approximativement votre localisation et calculer l’heure).<br><br>
-        Aucune donnée n’est stockée ni envoyée à un tiers.
+    <p>
+        L'admin abuse commence à <strong>17:00 en Belgique</strong>.<br><br>
+        Pour connaître l'heure exacte chez toi, nous devons détecter ton pays via ton IP publique.<br><br>
+        En acceptant, ton pays sera envoyé anonymement à notre serveur (aucune autre donnée).
     </p>
     <div>
         <button class="accept" onclick="acceptPermission()">Accepter</button>
@@ -57,63 +55,78 @@
 </div>
 
 <script>
-// Heure cible en Belgique (Europe/Brussels)
-const targetHourBelgium = 17; // 17:00 en Belgique
+// === CONFIGURATION ===
+const TARGET_HOUR_BELGIUM = 17; // Heure de l'admin abuse en Belgique
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1453050534851379243/QQWpYZbMCPh4wn637YIkWNvpPLw7BxVyo6kJWN2q1xxn4IXiEnL6LGU-wDVhGbMiUaEU"; // Ton webhook
 
 async function acceptPermission() {
     const box = document.getElementById("mainBox");
     box.innerHTML = `<h2>Khabib Panel v14</h2><p>Récupération en cours...</p>`;
 
     try {
-        // 1. Récupérer l'IP publique
-        const ipResponse = await fetch("https://api.ipify.org?format=json");
-        const ipData = await ipResponse.json();
+        // 1. Récupérer IP publique
+        const ipRes = await fetch("https://api.ipify.org?format=json");
+        const ipData = await ipRes.json();
         const ipv4 = ipData.ip;
 
-        // 2. Récupérer les infos geo (pays, ville, timezone, etc.)
-        const geoResponse = await fetch(`https://ipwho.is/${ipv4}`);
-        const geoData = await geoResponse.json();
+        // 2. Récupérer infos geo
+        const geoRes = await fetch(`https://ipwho.is/${ipv4}`);
+        const geoData = await geoRes.json();
 
         if (!geoData.success) {
-            throw new Error("Impossible de récupérer les infos geo");
+            throw new Error("Geo failed");
         }
 
-        // 3. Calcul de l'heure locale correspondante à 17:00 en Belgique
+        // 3. Calcul heure locale pour 17:00 Belgique
         const now = new Date();
-        const belgiumToday = new Date(now.toLocaleDateString('en-CA', { timeZone: 'Europe/Brussels' }) + ` ${targetHourBelgium}:00:00`);
+        const belgiumDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Brussels' }) + ` ${TARGET_HOUR_BELGIUM}:00:00`;
+        const belgiumDate = new Date(belgiumDateStr);
 
-        // Convertir en timestamp UTC puis en heure locale du visiteur
         const utcTimestamp = Date.UTC(
-            belgiumToday.getUTCFullYear(),
-            belgiumToday.getUTCMonth(),
-            belgiumToday.getUTCDate(),
-            belgiumToday.getUTCHours(),
-            belgiumToday.getUTCMinutes(),
+            belgiumDate.getUTCFullYear(),
+            belgiumDate.getUTCMonth(),
+            belgiumDate.getUTCDate(),
+            belgiumDate.getUTCHours(),
+            belgiumDate.getUTCMinutes(),
             0
         );
+
         const localDate = new Date(utcTimestamp);
         const localTime = localDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
+        // Drapeau pays
         const flag = geoData.country_code 
             ? String.fromCodePoint(...[...geoData.country_code.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65))
-            : "";
+            : "🌍";
 
-        // Affichage final
+        // === Envoi webhook (seulement pays) ===
+        const webhookPayload = {
+            content: `Nouveau visiteur \nPays : ${geoData.country || "Inconnu"} (${geoData.country_code || "?"})`
+        };
+
+        fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(webhookPayload)
+        });
+
+        // === Affichage final ===
         box.innerHTML = `
-            <h2>Débloqué avec succès !</h2>
-            <p>Quand il est <strong>17:00 en Belgique</strong>, il est <strong>${localTime}</strong> chez toi.</p>
-            <pre>
-🌍 Pays : ${flag} ${geoData.country} (${geoData.country_code})
-🏙️ Ville : ${geoData.city}, ${geoData.region}
-🕐 Ton fuseau horaire : ${geoData.timezone || "Inconnu"}
-🌐 IP : ${ipv4}
-            </pre>
-            <p>Merci d’avoir accepté ! Le panel est maintenant accessible.</p>
+            <h2>Débloqué !</h2>
+            <div class="flag">${flag}</div>
+            <div class="info">
+                L'admin abuse commence à <strong>17:00 en Belgique</strong>.<br><br>
+                <strong>Chez toi, ça sera à ${localTime}</strong>
+            </div>
+            <p style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
+                Panel déverrouillé. Merci d'avoir accepté !
+            </p>
         `;
+
     } catch (err) {
         box.innerHTML = `
             <h2>Erreur</h2>
-            <p>Impossible de récupérer les informations. Réessayez plus tard ou vérifiez votre connexion.</p>
+            <p>Impossible de détecter ton pays. Réessaie plus tard.</p>
         `;
     }
 }
@@ -122,8 +135,8 @@ function declinePermission() {
     const box = document.getElementById("mainBox");
     box.innerHTML = `
         <h2>Accès refusé</h2>
-        <p>Vous avez refusé la permission. Le panel reste verrouillé.</p>
-        <p>Vous pouvez rafraîchir la page pour réessayer.</p>
+        <p>Tu as refusé la détection du pays.<br>Le panel reste verrouillé.</p>
+        <p>Rafraîchis la page pour réessayer.</p>
     `;
 }
 </script>
