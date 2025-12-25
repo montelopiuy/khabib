@@ -4,94 +4,196 @@
     <meta charset="UTF-8">
     <title>Khabib Panel v14</title>
     <style>
-        body {font-family: Arial, sans-serif;background: #0f172a;color: white;display: flex;align-items: center;justify-content: center;height: 100vh;margin: 0;}
-        .box {background: #020617;padding: 30px;border-radius: 10px;max-width: 480px;text-align: center;box-shadow: 0 0 20px rgba(0,0,0,0.6);}
-        button {margin-top: 20px;padding: 12px 24px;font-size: 16px;cursor: pointer;border: none;border-radius: 5px;}
-        .accept {background: #22c55e;color: white;}
-        .decline {background: #ef4444;color: white;margin-left: 15px;}
-        .info {margin-top: 25px;font-size: 18px;line-height: 1.6;}
-        .flag {font-size: 40px;margin-bottom: 10px;}
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .box {
+            background: #020617;
+            padding: 35px;
+            border-radius: 10px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.6);
+        }
+        select, button {
+            padding: 12px;
+            font-size: 16px;
+            margin: 10px;
+            border-radius: 5px;
+            border: none;
+        }
+        select { width: 80%; background: #1e293b; color: white; }
+        button { background: #22c55e; color: white; cursor: pointer; width: 80%; }
+        .flag { font-size: 50px; margin: 20px 0; }
+        .big { font-size: 28px; font-weight: bold; margin: 30px 0; }
     </style>
 </head>
 <body>
 <div class="box" id="mainBox">
     <h2>Khabib Panel v14</h2>
-    <p>
-        L'admin abuse commence à <strong>17:00 en Belgique</strong>.<br><br>
-        Pour connaître l'heure exacte chez toi, nous devons détecter ton pays et fuseau horaire via ton IP publique.<br><br>
-        En acceptant, ton pays sera envoyé anonymement.
-    </p>
-    <div>
-        <button class="accept" onclick="acceptPermission()">Accepter</button>
-        <button class="decline" onclick="declinePermission()">Refuser</button>
+    <p>L'admin abuse commence à <strong>17:00 en Belgique</strong>.</p>
+    <p>Pour débloquer le panel, dis-moi dans quel pays tu es :</p>
+
+    <select id="countrySelect" onchange="showTimezoneIfNeeded()">
+        <option value="">Choisis ton pays</option>
+        <option value="BE">🇧🇪 Belgique</option>
+        <option value="FR">🇫🇷 France</option>
+        <option value="UK">🇬🇧 Royaume-Uni</option>
+        <option value="DE">🇩🇪 Allemagne</option>
+        <option value="ES">🇪🇸 Espagne</option>
+        <option value="IT">🇮🇹 Italie</option>
+        <option value="NL">🇳🇱 Pays-Bas</option>
+        <option value="CH">🇨🇭 Suisse</option>
+        <option value="US">🇺🇸 États-Unis</option>
+        <option value="CA">🇨🇦 Canada</option>
+        <option value="BR">🇧🇷 Brésil</option>
+        <option value="AU">🇦🇺 Australie</option>
+        <option value="RU">🇷🇺 Russie</option>
+        <option value="MA">🇲🇦 Maroc</option>
+        <option value="TN">🇹🇳 Tunisie</option>
+        <option value="DZ">🇩🇿 Algérie</option>
+        <option value="PT">🇵🇹 Portugal</option>
+        <option value="other">🌍 Autre pays</option>
+    </select>
+
+    <div id="timezoneDiv" style="display:none;">
+        <p>Choisis ton fuseau horaire :</p>
+        <select id="timezoneSelect"></select>
     </div>
+
+    <button onclick="calculateAndUnlock()" id="submitBtn" style="display:none;">Valider</button>
 </div>
 
 <script>
 const TARGET_HOUR_BELGIUM = 17;
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1453050534851379243/QQWpYZbMCPh4wn637YIkWNvpPLw7BxVyo6kJWN2q1xxn4IXiEnL6LGU-wDVhGbMiUaEU";
 
-async function acceptPermission() {
-    const box = document.getElementById("mainBox");
-    box.innerHTML = `<h2>Khabib Panel v14</h2><p>Récupération en cours...</p>`;
+// Fuseaux horaires par pays (seulement pour ceux qui en ont plusieurs)
+const timezones = {
+    US: [
+        {name: "Est (New York)", tz: "America/New_York"},
+        {name: "Centre (Chicago)", tz: "America/Chicago"},
+        {name: "Montagne (Denver)", tz: "America/Denver"},
+        {name: "Pacifique (Los Angeles)", tz: "America/Los_Angeles"},
+        {name: "Alaska", tz: "America/Anchorage"},
+        {name: "Hawaï", tz: "Pacific/Honolulu"}
+    ],
+    CA: [
+        {name: "Est (Toronto)", tz: "America/Toronto"},
+        {name: "Centre (Winnipeg)", tz: "America/Winnipeg"},
+        {name: "Montagne (Edmonton)", tz: "America/Edmonton"},
+        {name: "Pacifique (Vancouver)", tz: "America/Vancouver"},
+        {name: "Atlantique (Halifax)", tz: "America/Halifax"}
+    ],
+    AU: [
+        {name: "Est (Sydney)", tz: "Australia/Sydney"},
+        {name: "Centre (Adelaide)", tz: "Australia/Adelaide"},
+        {name: "Ouest (Perth)", tz: "Australia/Perth"}
+    ],
+    RU: [
+        {name: "Moscou", tz: "Europe/Moscow"},
+        {name: "Ekaterinbourg", tz: "Asia/Yekaterinburg"},
+        {name: "Vladivostok", tz: "Asia/Vladivostok"}
+    ],
+    BR: [
+        {name: "Brasília", tz: "America/Sao_Paulo"},
+        {name: "Amazonie", tz: "America/Manaus"},
+        {name: "Acre", tz: "America/Rio_Branco"}
+    ]
+};
 
-    try {
-        const ipRes = await fetch("https://api.ipify.org?format=json");
-        const ipData = await ipRes.json();
-        const ipv4 = ipData.ip;
+// Drapeaux et noms pays
+const countryNames = {
+    BE: "Belgique", FR: "France", UK: "Royaume-Uni", DE: "Allemagne", ES: "Espagne",
+    IT: "Italie", NL: "Pays-Bas", CH: "Suisse", US: "États-Unis", CA: "Canada",
+    BR: "Brésil", AU: "Australie", RU: "Russie", MA: "Maroc", TN: "Tunisie",
+    DZ: "Algérie", PT: "Portugal"
+};
 
-        const geoRes = await fetch(`https://ipwho.is/${ipv4}`);
-        const geoData = await geoRes.json();
+function showTimezoneIfNeeded() {
+    const country = document.getElementById("countrySelect").value;
+    const timezoneDiv = document.getElementById("timezoneDiv");
+    const timezoneSelect = document.getElementById("timezoneSelect");
+    const submitBtn = document.getElementById("submitBtn");
 
-        if (!geoData.success) throw new Error("Geo failed");
+    timezoneSelect.innerHTML = "";
+    timezoneDiv.style.display = "none";
+    submitBtn.style.display = "none";
 
-        // Utiliser le timezone précis renvoyé par l'API (ex: America/Los_Angeles)
-        const visitorTimezone = geoData.timezone || 'Europe/Brussels'; // fallback Belgique si pas dispo
+    if (!country || country === "other") {
+        submitBtn.style.display = "block";
+        return;
+    }
 
-        // Créer la date cible en Belgique aujourd'hui
-        const today = new Date();
-        const belgiumDate = new Date(today.toLocaleDateString('en-CA', {timeZone: 'Europe/Brussels'}) + ` ${TARGET_HOUR_BELGIUM}:00:00`);
-
-        // Convertir en heure locale du visiteur via son timezone détecté
-        const localTime = belgiumDate.toLocaleTimeString('fr-FR', {
-            timeZone: visitorTimezone,
-            hour: '2-digit',
-            minute: '2-digit'
+    if (timezones[country]) {
+        timezoneDiv.style.display = "block";
+        timezones[country].forEach(tz => {
+            const opt = document.createElement("option");
+            opt.value = tz.tz;
+            opt.textContent = tz.name;
+            timezoneSelect.appendChild(opt);
         });
-
-        const flag = geoData.country_code 
-            ? String.fromCodePoint(...[...geoData.country_code.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65))
-            : "🌍";
-
-        // Webhook : seulement pays
-        const webhookPayload = {
-            content: `Nouveau visiteur \nPays : ${geoData.country || "Inconnu"} (${geoData.country_code || "?"})`
-        };
-        fetch(WEBHOOK_URL, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(webhookPayload)});
-
-        // Affichage
-        box.innerHTML = `
-            <h2>Débloqué !</h2>
-            <div class="flag">${flag}</div>
-            <div class="info">
-                L'admin abuse commence à <strong>17:00 en Belgique</strong>.<br><br>
-                <strong>Chez toi, ça sera à ${localTime}</strong><br>
-                <small>(Fuseau détecté : ${visitorTimezone})</small>
-            </div>
-            <p style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
-                Panel déverrouillé. GG !
-            </p>
-        `;
-
-    } catch (err) {
-        box.innerHTML = `<h2>Erreur</h2><p>Impossible de détecter les infos. Réessaie ou désactive le VPN pour tester.</p>`;
+        submitBtn.style.display = "block";
+    } else {
+        submitBtn.style.display = "block";
     }
 }
 
-function declinePermission() {
+function calculateAndUnlock() {
+    const countryCode = document.getElementById("countrySelect").value;
+    if (!countryCode) return alert("Choisis un pays frère");
+
+    let visitorTimezone = "Europe/Brussels"; // default
+    let countryName = countryNames[countryCode] || "Autre pays";
+
+    if (timezones[countryCode]) {
+        const selectedTz = document.getElementById("timezoneSelect").value;
+        if (!selectedTz) return alert("Choisis ton fuseau horaire");
+        visitorTimezone = selectedTz;
+    } else if (countryCode === "UK") {
+        visitorTimezone = "Europe/London";
+    } else if (["FR","DE","ES","IT","NL","CH","MA","TN","DZ","PT"].includes(countryCode)) {
+        visitorTimezone = "Europe/Paris";
+    }
+
+    // Calcul de l'heure
+    const today = new Date();
+    const belgiumDateStr = today.toLocaleDateString('en-CA', {timeZone: 'Europe/Brussels'}) + ` ${TARGET_HOUR_BELGIUM}:00:00`;
+    const belgiumDate = new Date(belgiumDateStr);
+
+    const localTime = belgiumDate.toLocaleTimeString('fr-FR', {
+        timeZone: visitorTimezone,
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    // Drapeau
+    const flag = countryCode !== "other" 
+        ? String.fromCodePoint(...[...countryCode.toUpperCase()].map(c => c.charCodeAt(0) + 127397 - 65))
+        : "🌍";
+
+    // Envoi webhook
+    fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({content: `Nouveau visiteur \nPays : ${countryName} (${countryCode})`})
+    });
+
+    // Affichage final
     document.getElementById("mainBox").innerHTML = `
-        <h2>Accès refusé</h2>
-        <p>Refusé. Rafraîchis pour réessayer.</p>
+        <h2>Débloqué !</h2>
+        <div class="flag">${flag}</div>
+        <p>L'admin abuse commence à <strong>17:00 en Belgique</strong>.</p>
+        <p class="big">Chez toi, ça sera à ${localTime}</p>
+        <p class="big" style="color:#22c55e;">T’as capté ?</p>
+        <p style="margin-top: 40px; opacity: 0.8;">Panel ouvert. Bonne chance frère.</p>
     `;
 }
 </script>
